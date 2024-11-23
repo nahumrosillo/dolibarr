@@ -1,0 +1,43 @@
+# Translation file
+
+#
+# Generic
+#
+
+# Module label 'ModuleDoliPurgeName'
+ModuleDoliPurgeName = DoliPurge
+# Module description 'ModuleDoliPurgeDesc'
+ModuleDoliPurgeDesc = DoliPurge description
+
+#
+# Admin page
+#
+DoliPurgeSetup = DoliPurge setup
+Settings = Settings
+DoliPurgeSetupPage = DoliPurge setup page
+NewSection=New section
+DOLIPURGE_MYPARAM1 = My param 1
+DOLIPURGE_MYPARAM1Tooltip = My param 1 tooltip
+DOLIPURGE_MYPARAM2=My param 2
+DOLIPURGE_MYPARAM2Tooltip=My param 2 tooltip
+
+
+#
+# About page
+#
+About = About
+DoliPurgeAbout = About DoliPurge
+DoliPurgeAboutPage = DoliPurge about page
+
+#
+# Sample page
+#
+DoliPurgeArea = Home DoliPurge
+MyPageName = My page name
+
+#
+# Sample widget
+#
+MyWidget = My widget
+MyWidgetDescription = My widget description
+DOLIPURGE_MYPARAM5 = He realizado una copia de seguridad de mis datos y estoy seguro de que quiero borrarlos
