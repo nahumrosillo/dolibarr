@@ -1,0 +1,13 @@
+{
+    "name": "nahumrosillo/syncwoocommerce",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Nahum Rosillo",
+            "email": "nahum.rosillolopez@gmail.com"
+        }
+    ],
+    "require": {
+        "aws/aws-sdk-php": "^3.331"
+    }
+}

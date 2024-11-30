@@ -1,0 +1,50 @@
+# Translation file
+
+#
+# Generic
+#
+
+# Module label 'ModuleSyncWoocommerceName'
+ModuleSyncWoocommerceName = SyncWoocommerce
+# Module description 'ModuleSyncWoocommerceDesc'
+ModuleSyncWoocommerceDesc = SyncWoocommerce description
+
+#
+# Admin page
+#
+SyncWoocommerceSetup = SyncWoocommerce configuración
+Settings = Configuración
+SyncWoocommerceSetupPage = Página de configuración de SyncWoocommerce
+SYNCWOOCOMMERCE_ENABLE_SYNC = Activar sincronización
+SYNCWOOCOMMERCE_QUEUE_PROVIDER= Proveedor de cola
+
+SYNCWOOCOMMERCE_AWS_ACCESS_KEY = ACCESS_KEY de AWS
+SYNCWOOCOMMERCE_AWS_SECRET_KEY = SECRET_KEY de AWS
+SYNCWOOCOMMERCE_AWS_REGION = REGION de AWS
+SYNCWOOCOMMERCE_AWS_QUEUE_URL = QUEUE_URL de AWS
+
+SYNCWOOCOMMERCE_CLOUDFLARE_API_TOKEN = API Token de Cloudflare
+SYNCWOOCOMMERCE_CLOUDFLARE_ACCOUNT_ID = ID de cuenta de Cloudflare
+SYNCWOOCOMMERCE_CLOUDFLARE_QUEUE_ID = ID de cola de Cloudflare
+SYNCWOOCOMMERCE_WAREHOUSE_ID = Almacen para obtener productos y stock
+SYNCWOOCOMMERCE_ROOT_CATEGORY_ID = Categoria para la sincronización.
+
+
+#
+# About page
+#
+About = About
+SyncWoocommerceAbout = About SyncWoocommerce
+SyncWoocommerceAboutPage = SyncWoocommerce about page
+
+#
+# Sample page
+#
+SyncWoocommerceArea = Acciones de SyncWoocommerce
+MyPageName = My page name
+
+#
+# Sample widget
+#
+MyWidget = My widget
+MyWidgetDescription = My widget description
