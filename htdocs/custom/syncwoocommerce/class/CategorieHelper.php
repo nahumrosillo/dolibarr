@@ -13,7 +13,7 @@ class CategorieHelper
 	{
 		$categories = $this->getChildrenData($categoryId);
 		foreach ($categories as $key => $category) {
-			$categories[$key]['children'] = $this->getChildrenTree($category['rowid']);
+			$categories[$key]['children'] = $this->getChildrenTree($category['id']);
 		}
 		return $categories;
 	}
@@ -27,7 +27,7 @@ class CategorieHelper
 			$rows = [];
 			while ($obj = $this->db->fetch_object($resql)) {
 				$rows[] = [
-					'rowid' => $obj->rowid,
+					'id' => $obj->rowid,
 					'label' => $obj->label,
 					'description' => $obj->description,
 					'position' => $obj->position,

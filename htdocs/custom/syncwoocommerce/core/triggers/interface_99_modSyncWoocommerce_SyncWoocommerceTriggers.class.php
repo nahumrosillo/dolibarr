@@ -37,6 +37,11 @@ require_once DOL_DOCUMENT_ROOT . '/custom/syncwoocommerce/class/AwsSQSAPI.php';
 require_once DOL_DOCUMENT_ROOT . '/custom/syncwoocommerce/class/CategorieHelper.php';
 require_once DOL_DOCUMENT_ROOT . '/core/triggers/dolibarrtriggers.class.php';
 require_once DOL_DOCUMENT_ROOT . '/categories/class/categorie.class.php';
+require_once DOL_DOCUMENT_ROOT . '/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT . '/variants/class/ProductCombination.class.php';
+require_once DOL_DOCUMENT_ROOT . '/variants/class/ProductAttribute.class.php';
+require_once DOL_DOCUMENT_ROOT . '/variants/class/ProductAttributeValue.class.php';
+require_once DOL_DOCUMENT_ROOT . '/variants/class/ProductCombination2ValuePair.class.php';
 
 
 /**
@@ -135,81 +140,130 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 					$warehouseId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_WAREHOUSE_ID');
 
 					$object->load_stock();
-					$stockForWeb = NULL;
-					foreach ($object->stock_warehouse as $stock) {
-						if ($stock->id == $warehouseId) {
-							$stockForWeb = $stock->real;
-						}
+
+					$stockForWeb = $object->stock_warehouse[$warehouseId]->real ?? 0;
+
+					$categories = [];
+					$category = new Categorie($this->db);
+
+					$categoryList = $category->containing($object->id, 'product');
+					foreach ($categoryList as $cat) {
+						$categories[] = [
+							'id' => $cat->id,
+							'label' => $cat->label,
+							'description' => $cat->description,
+							'position' => $cat->position,
+							'fk_parent' => $cat->fk_parent
+						];
 					}
 
+					$attributes = [];
+					$parentDTO = null;
+					if ($object->isVariant()) {
 
-					if ($stockForWeb !== NULL) {
+						$pc = new ProductCombination($this->db);
+						$isOK = $pc->fetchByFkProductChild($object->id);
 
-						$categories = [];
-						$category = new Categorie($this->db);
+						if ($isOK > 0) {
+							$attributes = $this->getAttributesFromVariant($this->db, $object->id);
 
-						$categoryList = $category->containing($object->id, 'product');
-						foreach ($categoryList as $cat) {
-							$categories[] = [
-								'id' => $cat->id,
-								'label' => $cat->label,
-								'description' => $cat->description,
-								'position' => $cat->position,
-								'fk_parent' => $cat->fk_parent
-							];
+							$parent = new Product($this->db);
+							$parent->fetch($pc->fk_product_parent);
+							$parentDTO = $parent->ref;
 						}
 
-						if (!empty($categories)) {
-							$json = [
-								"operation" => $action,
-								"data" => [
-									'product' => [
-										'id' => $object->id,
-										'reference' => $object->ref,
-										'status' => $object->status,
-										'price' => $object->price,
-										'price_ttc' => $object->price_ttc,
-										'price_min' => $object->price_min,
-										'price_min_ttc' => $object->price_min_ttc,
-										'tax_rate' => $object->tva_tx,
-										'real_stock' => $stockForWeb,
-										'theoretical_stock' => $object->stock_theorique,
-										'barcode' => $object->barcode,
-										'categories' => $categories
-									]
+
+					}
+
+					if ($object->hasVariants()) {
+						$attributes = $this->getAllAttributesFromParent($this->db, $object->id);
+					}
+
+					$files = self::getOrderedProductAttachments($this->db, $object->ref);
+
+					$attachments = [];
+					foreach ($files as $file) {
+
+						$relativeName = $file['name'];
+						$ext = strtolower(substr($relativeName, strrpos($relativeName, '.') + 1));
+
+						$imagesMimeTypeAllowed = [
+							'jpg',
+							'jpeg',
+							'png',
+							'gif',
+							'bmp',
+							'tiff',
+							'webp'
+						];
+
+						if (!in_array($ext, $imagesMimeTypeAllowed)) {
+							continue;
+						}
+
+						$publicUrl = dol_buildpath("/custom/syncwoocommerce/syncwoocommerce_download_file.php?file=" . '/produit/' . dol_sanitizeFileName($object->ref) . "/" . $file['relativename'], 2);
+
+						$attachments[] = [
+							'public_url' => $publicUrl
+						];
+					}
+
+					if (!empty($categories)) {
+						$json = [
+							"operation" => $action,
+							"data" => [
+								'product' => [
+									'id' => $object->id,
+									'has_variant' => $object->hasVariants() > 0,
+									'is_variant' => $object->isVariant(),
+									'parent' => $parentDTO,
+									'label' => $object->label,
+									'description' => $object->description,
+									'reference' => $object->ref,
+									'status' => $object->status,
+									'price' => $object->price,
+									'price_ttc' => $object->price_ttc,
+									'price_min' => $object->price_min,
+									'price_min_ttc' => $object->price_min_ttc,
+									'tax_rate' => $object->tva_tx,
+									'real_stock' => $stockForWeb,
+									'theoretical_stock' => $stockForWeb,
+									'barcode' => $object->barcode,
+									'categories' => $categories,
+									'attachments' => $attachments,
+									'attributes' => $attributes
 								]
-							];
+							]
+						];
 
-							$accessKey = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_ACCESS_KEY');
-							$secretKey = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_SECRET_KEY');
-							$region = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_REGION');
-							$queueUrl = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_QUEUE_URL');
+						$accessKey = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_ACCESS_KEY');
+						$secretKey = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_SECRET_KEY');
+						$region = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_REGION');
+						$queueUrl = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_AWS_QUEUE_URL');
 
-							$api = new AwsSQSAPI([
-								'accessKey' => $accessKey,
-								'secretKey' => $secretKey,
-								'region' => $region,
-								'queueUrl' => $queueUrl
-							]);
+						$api = new AwsSQSAPI([
+							'accessKey' => $accessKey,
+							'secretKey' => $secretKey,
+							'region' => $region,
+							'queueUrl' => $queueUrl
+						]);
 
-							/*
-								$apiToken = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_API_TOKEN');
-								$accountId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_ACCOUNT_ID');
-								$queueId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_QUEUE_ID');
+						/*
+							$apiToken = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_API_TOKEN');
+							$accountId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_ACCOUNT_ID');
+							$queueId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_CLOUDFLARE_QUEUE_ID');
 
-								$api = new CloudflareQueueAPI([
-									'apiToken' => $apiToken,
-									'accountId' => $accountId,
-									'queueId' => $queueId
-								]);*/
+							$api = new CloudflareQueueAPI([
+								'apiToken' => $apiToken,
+								'accountId' => $accountId,
+								'queueId' => $queueId
+							]);*/
 
-							$result = $api->pushMessage($json);
-
-
-						}
+						$result = $api->pushMessage($json);
 
 
 					}
+
 
 				}
 
@@ -221,7 +275,8 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 			//case 'PRODUCT_DEL_MULTILANGS':
 
 			//Stock movement
-			case 'STOCK_MOVEMENT':
+			case
+			'STOCK_MOVEMENT':
 				/** @var MouvementStock $object */
 				$warehouseId = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_WAREHOUSE_ID');
 				$syncEnabled = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_ENABLE_SYNC');
@@ -234,6 +289,9 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 
 					$product = new Product($this->db);
 					$product->fetch($productId);
+					$product->load_stock();
+
+					$stock = $product->stock_warehouse[$warehouseId]->real ?? 0;
 
 					$categories = [];
 					$category = new Categorie($this->db);
@@ -262,7 +320,7 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 									'price_min' => $product->price_min,
 									'price_min_ttc' => $product->price_min_ttc,
 									'tax_rate' => $product->tva_tx,
-									'real_stock' => $product->stock_reel,
+									'real_stock' => $stock,
 									'theoretical_stock' => $product->stock_theorique,
 									'barcode' => $product->barcode,
 									'categories' => $categories
@@ -299,13 +357,6 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 							'queueId' => $queueId
 						]);*/
 						$result = $api->pushMessage($json);
-
-						if (!$result['MessageId']) {
-							dol_syslog("Error sending message to Cloudflare API: " . $result['errors'][0]['message']);
-							$message = $langs->trans("Error al sincronizar con la web."); // Mensaje traducido
-							setEventMessage($message, 'warnings');
-						}
-
 					}
 				}
 
@@ -464,19 +515,25 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 				if ($syncEnabled == "1") {
 
 					$rootCategory = dolibarr_get_const($this->db, 'SYNCWOOCOMMERCE_ROOT_CATEGORY_ID');
+
+					if ($rootCategory == $object->id) {
+						break;
+					}
+
 					$categoryHelper = new CategorieHelper($this->db);
 					$tree = $categoryHelper->getChildrenTree($rootCategory);
 
 					$json = [
 						"operation" => $action,
 						"data" => [
-							'tree' => $tree,
+							//'tree' => $tree,
 							'category' => [
 								'id' => $object->id,
 								'label' => $object->label,
 								'description' => $object->description,
 								'position' => $object->position,
-								'fk_parent' => $object->fk_parent
+								'fk_parent' => $object->fk_parent,
+								'children' => $categoryHelper->getChildrenData($object->id)
 							]
 						]
 					];
@@ -547,5 +604,175 @@ class InterfaceSyncWoocommerceTriggers extends DolibarrTriggers
 		}
 
 		return 0;
+	}
+
+
+	/**
+	 * Get ordered attached files of a product
+	 *
+	 * @param DoliDB $db Database handler
+	 * @param string $productRef Reference of the product
+	 * @return array List of ordered attached files
+	 */
+	function getOrderedProductAttachments($db, $productRef)
+	{
+		$upload_dir = DOL_DATA_ROOT . "/produit/" . dol_sanitizeFileName($productRef);
+		$files = dol_dir_list($upload_dir, "files", 0, '', '', 'date', SORT_ASC, 0);
+
+		// Get the order from the database
+		$sql = "SELECT rowid, filename, position FROM " . MAIN_DB_PREFIX . "ecm_files WHERE filepath = 'produit/" . $db->escape($productRef) . "' ORDER BY position ASC";
+		$resql = $db->query($sql);
+
+		if ($resql) {
+			$orderedFiles = [];
+			while ($obj = $db->fetch_object($resql)) {
+				foreach ($files as $file) {
+					if ($file['name'] == $obj->filename) {
+						$file['position'] = $obj->position;
+						$orderedFiles[] = $file;
+						break;
+					}
+				}
+			}
+			return $orderedFiles;
+		} else {
+			return $files;
+		}
+	}
+
+	/**
+	 * @param $db
+	 * @param Product $product
+	 * @return array<Product>
+	 */
+	public
+	function getVariants($db, Product $product): array
+	{
+		$variants = [];
+
+		if ($product->id && $product->hasVariants()) {
+			// Obtener variantes
+			$sql = "SELECT rowid, fk_product_child as child FROM " . MAIN_DB_PREFIX . "product_attribute_combination WHERE fk_product_parent = " . $product->id;
+			$resql = $db->query($sql);
+			if ($resql) {
+				while ($obj = $db->fetch_object($resql)) {
+
+					$childId = $obj->child;
+					$child = new Product($db);
+					$child->fetch($childId);
+					$variants[] = $child;
+				}
+			}
+		}
+
+		return $variants;
+	}
+
+	/**
+	 * @param $db
+	 * @param Product $product
+	 * @return Product|null
+	 */
+	public
+	function getParent($db, Product $product): ?Product
+	{
+		if ($product->id && $product->isVariant()) {
+			// Obtener variantes
+			$sql = "SELECT fk_product_parent as parent FROM " . MAIN_DB_PREFIX . "product_attribute_combination WHERE fk_product_child = " . $product->id . " LIMIT 1";
+			$resql = $db->query($sql);
+			if ($resql) {
+				$obj = $db->fetch_object($resql);
+				$parentId = $obj->parent;
+
+				$parent = new Product($db);
+				$parent->fetch($parentId);
+
+				return $parent;
+
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param DoliDB $db
+	 * @param int $parentId
+	 * @return array
+	 */
+	public function getAllAttributesFromParent(DoliDB $db, int $parentId): array
+	{
+		$attributes = [];
+		$pc = new ProductCombination($db);
+		$attributesTMP = $pc->getUniqueAttributesAndValuesByFkProductParent($parentId);
+		foreach ($attributesTMP as $attribute) {
+
+			/** @var ProductAttributeValue[] $values */
+			$values = $attribute->values;
+
+			$productAttributeValues = [];
+			foreach ($values as $value) {
+				$productAttributeValues[] = [
+					'id' => $value->id,
+					'ref' => $value->ref,
+					'value' => $value->value,
+				];
+
+			}
+
+			$attributes[] = [
+				'id' => $attribute->id,
+				'ref' => $attribute->ref,
+				'label' => $attribute->label,
+				'values' => $productAttributeValues
+			];
+
+		}
+		return $attributes;
+	}
+
+	/**
+	 * @param DoliDB $db
+	 * @param int $variantId
+	 * @return array
+	 */
+	public function getAttributesFromVariant(DoliDB $db, int $variantId): array
+	{
+		$attributes = [];
+
+		$productCombination = new ProductCombination($db);
+		$isOK = $productCombination->fetchByFkProductChild($variantId);
+
+		if ($isOK > 0) {
+			$pc2 = new ProductCombination2ValuePair($db);
+			$combinations = $pc2->fetchByFkCombination($productCombination->id);
+
+			/** @var ProductCombination2ValuePair $combination */
+			foreach ($combinations as $combination) {
+				$attributeId = $combination->fk_prod_attr;
+				$attributeValue = $combination->fk_prod_attr_val;
+
+				$pa = new ProductAttribute($db);
+				$pa->fetch($attributeId);
+
+				$pav = new ProductAttributeValue($db);
+				$pav->fetch($attributeValue);
+
+				$attributes[] = [
+					'id' => $pa->id,
+					'ref' => $pa->ref,
+					'label' => $pa->label,
+					'value' => $pav->value
+				];
+			}
+
+			return $attributes;
+
+
+		}
+
+		return [];
+
+
 	}
 }
