@@ -263,20 +263,20 @@ class modSyncWoocommerce extends DolibarrModules
 		// unit_frequency must be 60 for minute, 3600 for hour, 86400 for day, 604800 for week
 		/* BEGIN MODULEBUILDER CRON */
 		$this->cronjobs = array(
-			//  0 => array(
-			//      'label' => 'MyJob label',
-			//      'jobtype' => 'method',
-			//      'class' => '/syncwoocommerce/class/myobject.class.php',
-			//      'objectname' => 'MyObject',
-			//      'method' => 'doScheduledJob',
-			//      'parameters' => '',
-			//      'comment' => 'Comment',
-			//      'frequency' => 2,
-			//      'unitfrequency' => 3600,
-			//      'status' => 0,
-			//      'test' => 'isModEnabled("syncwoocommerce")',
-			//      'priority' => 50,
-			//  ),
+			  0 => array(
+			      'label' => 'Obtener pedidos de WooCommerce',
+			      'jobtype' => 'method',
+			      'class' => '/syncwoocommerce/class/CommandSyncDataFromWooCommerce.php',
+			      'objectname' => 'CommandSyncDataFromWooCommerce',
+			      'method' => 'runSyncDataFromWooCommerceQueue',
+			      'parameters' => '',
+			      'comment' => 'Comment',
+			      'frequency' => 2,
+			      'unitfrequency' => 60,
+			      'status' => 1,
+			      'test' => 'isModEnabled("syncwoocommerce")',
+			      'priority' => 50,
+			  ),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(
@@ -472,8 +472,10 @@ class modSyncWoocommerce extends DolibarrModules
 		}
 
 		// Create extrafields during init
-		//include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
-		//$extrafields = new ExtraFields($this->db);
+		include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
+		$extrafields = new ExtraFields($this->db);
+		$result0 = $extrafields->addExtraField('woocommerce_order_id', 'ID Pedido Web', 'varchar', 1, 255, 'commande', 0, 0, '', '', 1, '', -1, 0, '', '', 'syncwoocommerce@syncwoocommerce', 'isModEnabled("syncwoocommerce")');
+		$result1 = $extrafields->addExtraField('woocommerce_client_id', 'ID Cliente Web', 'varchar', 1, 255, 'thirdparty', 0, 0, '', '', 1, '', -1, 0, '', '', 'syncwoocommerce@syncwoocommerce', 'isModEnabled("syncwoocommerce")');
 		//$result0=$extrafields->addExtraField('syncwoocommerce_separator1', "Separator 1", 'separator', 1,  0, 'thirdparty',   0, 0, '', array('options'=>array(1=>1)), 1, '', 1, 0, '', '', 'syncwoocommerce@syncwoocommerce', 'isModEnabled("syncwoocommerce")');
 		//$result1=$extrafields->addExtraField('syncwoocommerce_myattr1', "New Attr 1 label", 'boolean', 1,  3, 'thirdparty',   0, 0, '', '', 1, '', -1, 0, '', '', 'syncwoocommerce@syncwoocommerce', 'isModEnabled("syncwoocommerce")');
 		//$result2=$extrafields->addExtraField('syncwoocommerce_myattr2', "New Attr 2 label", 'varchar', 1, 10, 'project',      0, 0, '', '', 1, '', -1, 0, '', '', 'syncwoocommerce@syncwoocommerce', 'isModEnabled("syncwoocommerce")');

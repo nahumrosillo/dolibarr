@@ -132,7 +132,9 @@ $item->fieldAttr['class'] = 'flat minwidth400';
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_REGION');
 $item->fieldAttr['class'] = 'flat minwidth400';
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_QUEUE_URL');
-$item->fieldAttr['class'] = 'flat minwidth400';
+$item->fieldAttr['class'] = 'flat minwidth500';
+$item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_QUEUE_URL_FOR_SYNC_ORDERS');
+$item->fieldAttr['class'] = 'flat minwidth500';
 
 
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_CLOUDFLARE_API_TOKEN');
