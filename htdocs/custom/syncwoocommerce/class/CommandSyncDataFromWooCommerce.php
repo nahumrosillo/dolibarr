@@ -6,10 +6,13 @@ require_once DOL_DOCUMENT_ROOT . '/commande/class/commande.class.php';
 require_once DOL_DOCUMENT_ROOT . '/custom/syncwoocommerce/class/AwsSQSAPI.php';
 require_once DOL_DOCUMENT_ROOT . '/custom/syncwoocommerce/class/WC_OrderDTO.php';
 require_once DOL_DOCUMENT_ROOT . '/custom/syncwoocommerce/class/OrderHelper.php';
+require_once DOL_DOCUMENT_ROOT . '/societe/class/societe.class.php';
+require_once DOL_DOCUMENT_ROOT . '/compta/facture/class/facture.class.php';
+require_once DOL_DOCUMENT_ROOT . "/compta/paiement/class/paiement.class.php";
 
 class CommandSyncDataFromWooCommerce
 {
-	public function runSyncDataFromWooCommerceQueue(): void
+	public function runSyncDataFromWooCommerceQueue()
 	{
 		global $db, $conf, $langs;
 
@@ -108,7 +111,7 @@ class CommandSyncDataFromWooCommerce
 				$order->socid = $societe->id;
 				$date = DateTime::createFromFormat('Y-m-d H:i:s', $orderDTO->getDateCreated());
 				$order->date_commande = $date->getTimestamp();
-				$order->set_date($user, $date->getTimestamp());
+				$isOk = $order->set_date($user, $date->getTimestamp());
 
 				$order->setExtraField('woocommerce_order_id', $orderDTO->getOrderId());
 				$order->add_contact($contact->id, 'CUSTOMER');
@@ -137,10 +140,91 @@ class CommandSyncDataFromWooCommerce
 				$order->update($user);
 
 
+				if (true) {
+
+					$wareHouseId = dolibarr_get_const($db, 'SYNCWOOCOMMERCE_WAREHOUSE_ID');
+					$accountId = dolibarr_get_const($db, 'SYNCWOOCOMMERCE_ACCOUNT_ID_FOR_RECEIVE_PAYMENT');
+
+					//$iValid = $order->valid($user, $wareHouseId);
+					$order->update($user);
+
+					$invoice = new Facture($db);
+					$invoice->createFromOrder($order, $user);
+					$invoice->thirdparty = $societe;
+					$invoice->update($user);
+
+					if (preg_match('/^[\(]?PROV/i', $invoice->ref) || empty($invoice->ref)) { // empty should not happened, but when it occurs, the test save life
+						if (getDolGlobalString('FAC_FORCE_DATE_VALIDATION')) {    // If option enabled, we force invoice date
+							$invoice->date = dol_now();
+							$invoice->date_lim_reglement = $invoice->calculate_date_lim_reglement();
+						}
+						$num = $invoice->getNextNumRef($invoice->thirdparty);
+					} else {
+						$num = $invoice->ref;
+					}
+
+					$invoice->newref = dol_sanitizeFileName($num);
+					$invoice->ref = $invoice->newref;
+					$invoice->update($user);
+
+
+					if ($invoice->status != Facture::STATUS_CLOSED) {
+
+						// 2. Registrar el pago
+						$paiement = new Paiement($db);
+						$paiement->amounts = [
+							$invoice->id => $order->total_ttc
+						];
+						$paiement->datepaye = dol_now();
+						$paiement->paiementid = 6; // Pago con tarjeta
+						$paiement->paiementcode = "CB"; // Pago con tarjeta
+						$paiement->num_payment = ""; // nº de pago de la web TODO
+						$paiement->note_private = ""; // Notas privadas TODO
+						$paiement->fk_account = $accountId;
+						$paiement->totalpaid = $order->total_ttc;
+						$paiement->amount = $invoice->total_ttc;
+
+						$result = $paiement->create($user, 1, $invoice->thirdparty);
+						if ($result < 0) {
+							//echo "Error al registrar el pago.";
+						} else {
+							$account = new Account($db);
+							$account->fetch($accountId);
+							$isOk = $paiement->addPaymentToBank($user, 'payment', '(CustomerInvoicePayment)', $accountId, $orderDTO->getBilling()->getFullName(), $account->label);
+						}
+
+						$invoice->setWarehouse($wareHouseId);
+
+						if (true) {
+							// Si el total del pago coincide con el total de la factura, marcarla como cerrada y pagada
+							$invoiceId = $invoice->id;
+							$invoice = new Facture($db);
+							$invoice->fetch($invoiceId);
+							//$isPaided = $invoice->setPaid($user);
+							//$invoice->setStatut(Facture::STATUS_VALIDATED);
+							$isOk = $invoice->update($user);
+
+
+							echo "Factura marcada como pagada y finalizada.";
+							$orderId = $order->id;
+							$order = new Commande($db);
+							$order->fetch($orderId);
+							$isBilled = $order->classifyBilled($user);
+							$order->setStatut(Commande::STATUS_ACCEPTED);
+							$isOk = $order->update($user);
+						}
+
+
+					}
+				}
+
+
 			}
 
 		}
 
+
+		//return 1;
 	}
 
 

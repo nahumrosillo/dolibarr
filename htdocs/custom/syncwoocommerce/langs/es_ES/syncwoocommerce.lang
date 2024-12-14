@@ -29,6 +29,9 @@ SYNCWOOCOMMERCE_CLOUDFLARE_ACCOUNT_ID = ID de cuenta de Cloudflare
 SYNCWOOCOMMERCE_CLOUDFLARE_QUEUE_ID = ID de cola de Cloudflare
 SYNCWOOCOMMERCE_WAREHOUSE_ID = Almacen para obtener productos y stock
 SYNCWOOCOMMERCE_ROOT_CATEGORY_ID = Categoria para la sincronización.
+SYNCWOOCOMMERCE_ACCOUNT_ID_FOR_RECEIVE_PAYMENT = ID de cuenta para recibir pagos online
+SYNCWOOCOMMERCE_AWS_CONFIG_TITLE = Configuración específica para AWS
+SYNCWOOCOMMERCE_CLOUDFLARE_CONFIG_TITLE = Configuración específica para Cloudflare
 
 
 #

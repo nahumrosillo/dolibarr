@@ -116,15 +116,33 @@ if (!$user->admin) {
 //$item->fieldAttr['placeholder'] = 'A placeholder here';
 
 $formSetup->newItem('SYNCWOOCOMMERCE_ENABLE_SYNC')->setAsYesNo();
+$item = $formSetup->newItem('SYNCWOOCOMMERCE_WAREHOUSE_ID');
+$entrepot = new Entrepot($db);
+$listwarehouses = $entrepot->list_array(1);
+$item->setAsSelect($listwarehouses);
+
+$item = $formSetup->newItem('SYNCWOOCOMMERCE_ACCOUNT_ID_FOR_RECEIVE_PAYMENT');
+$sql = "SELECT * from " . MAIN_DB_PREFIX . "bank_account";
+$resql = $db->query($sql);
+$accounts = [];
+while ($obj = $db->fetch_object($resql)) {
+	$accounts[$obj->rowid] = $obj->label;
+}
+$item->setAsSelect($accounts);
+
+
+$item = $formSetup->newItem('SYNCWOOCOMMERCE_ROOT_CATEGORY_ID');
+$item->setAsCategory('product');
 
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_QUEUE_PROVIDER')
 	->setAsSelect([
 		'cloudflare' => 'Cloudflare',
 		'aws_sqs' => 'AWS SQS',
 	]);
-$item->defaultFieldValue = 'cloudflare';
+$item->defaultFieldValue = 'aws_sqs';
 
 
+$formSetup->newItem('SYNCWOOCOMMERCE_AWS_CONFIG_TITLE')->setAsTitle();
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_ACCESS_KEY');
 $item->fieldAttr['class'] = 'flat minwidth400';
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_SECRET_KEY');
@@ -137,6 +155,7 @@ $item = $formSetup->newItem('SYNCWOOCOMMERCE_AWS_QUEUE_URL_FOR_SYNC_ORDERS');
 $item->fieldAttr['class'] = 'flat minwidth500';
 
 
+$formSetup->newItem('SYNCWOOCOMMERCE_CLOUDFLARE_CONFIG_TITLE')->setAsTitle();
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_CLOUDFLARE_API_TOKEN');
 $item->fieldAttr['class'] = 'flat minwidth400';
 
@@ -144,13 +163,6 @@ $item = $formSetup->newItem('SYNCWOOCOMMERCE_CLOUDFLARE_ACCOUNT_ID');
 $item->fieldAttr['class'] = 'flat minwidth400';
 $item = $formSetup->newItem('SYNCWOOCOMMERCE_CLOUDFLARE_QUEUE_ID');
 $item->fieldAttr['class'] = 'flat minwidth400';
-$item = $formSetup->newItem('SYNCWOOCOMMERCE_WAREHOUSE_ID');
-
-$entrepot = new Entrepot($db);
-$listwarehouses = $entrepot->list_array(1);
-$item->setAsSelect($listwarehouses);
-$item = $formSetup->newItem('SYNCWOOCOMMERCE_ROOT_CATEGORY_ID');
-$item->setAsCategory('product');
 
 
 // Setup conf for a multiselect combo list

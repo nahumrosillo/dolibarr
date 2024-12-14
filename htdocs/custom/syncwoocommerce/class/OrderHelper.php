@@ -1,5 +1,7 @@
 <?php
 
+require_once DOL_DOCUMENT_ROOT . '/contact/class/contact.class.php';
+
 class OrderHelper
 {
 
